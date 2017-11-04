@@ -6,26 +6,31 @@ class Brain {
   long generations;
   boolean complete;
   float dieThreshold;
+  int number;
     
   Brain(int number, int mutationRate, float dieThreshold) {
     dna = new ArrayList<Item>();
     this.mutationRate = mutationRate;
     this.dieThreshold = dieThreshold;
-    init(number);
+    this.number = number;
   }
   
-  void init(int number) {
+  void init() { 
     dna.clear();
-    int w = floor(sqrt(width * height / number));
     
-    for(int x = 0; x < width; x += w) {
-      for(int y = 0; y < height; y += w) {
-        Item item = new Item();
-        item.itemWidth = w;
-        item.colour = color(random(0, 255), random(0, 255), random(0, 255), 255);
-        item.position = new PVector(x, y);
-        dna.add(item);
-      }
+    int w = floor(sqrt(image.width * image. height / number));
+    int cols = width / w;
+    
+    for(int i=0; i<number; i++) {
+      
+      int x = (i % cols) * w;
+      int y = (i / cols) * w;
+      
+      Item item = new Item();
+      item.itemWidth = w;
+      item.colour = color(random(0, 255), random(0, 255), random(0, 255), 255);
+      item.position = new PVector(x, y);
+      dna.add(item);   
     }
   }
   
@@ -34,16 +39,13 @@ class Brain {
     image.resize(width, height);
     generations = 0;
     complete = false;
-    if(dna.size() > 0 && dna.get(0).fitness != null) {
-      dna.get(0).fitness[0] = 0;
-    }
   }
   
   int getAvgColor(float x, float y, int w) {
     
     int[] sums = new int[3];
     
-    if(x+w > width || y+w > height) {
+    if(x+w > image.width || y+w > image.height) {
       return 0;
     }
         
@@ -93,16 +95,22 @@ class Brain {
       }
   }
   
-  void reconstruct() {    
+  void reconstruct() {   
+    // DNA size has been changed -> recrate the dna
+    if(dna.size() != number) {
+      init();
+    }
      
+    // Check the completness of the reconstruction
     complete = true;
-     for(Item i : dna) {
+    for(Item i : dna) {
       if(!i.isComplete()) {
         complete = false;
         break;
       }
     }
     
+    // Stop calculation if it is complete
     if(complete) {
       return;
     }
