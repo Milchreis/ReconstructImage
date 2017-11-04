@@ -20,39 +20,42 @@ public class ReconstructImage extends PApplet {
 // ==================================
 
 /** Sets the number of items/tiles for the complete image */
-int ELEMENTS = 8000;
+int ELEMENTS = 3000;
 
 /** Sets the range for variation of the color value (per color channel 0-255) */
 int MUTATION_RATE = 30;
 
 /** Toggle the visualisation for finished items */
-boolean SHOW_FINISHED_ITEMS = true;
+boolean SHOW_FINISHED_ITEMS = false;
 
 /** Sets the threshold lowest fitness for items which are underneth will die 
  * and reborn as complete new item (random color) */
 float DIE_THRESHOLD = 0.4f;
 
-/** Sets the maximum window for loaded images */
-int MAX_WINDOW_WIDTH = 400;
+/** Sets the maximum width/height window for loaded images (takes larges side of the image) */
+int MAX_WINDOW = 800;
+
+/** Painting method */
+ItemPainting PAINTING = ItemPainting.RECT;
 
 Brain brain;
 
 public void setup() {
   
-  surface.setResizable(true);
   textFont(createFont("Monospaced", 11));
 }
 
 public void draw() {
   background(30);
   
-  if(brain == null)  {
+  if(brain == null || brain.image == null)  {
     // View instructions
     textSize(22); 
     print("1. Click to load an image", 10, 30);
     print("2. Press '+' or '-' to change the mutation rate", 10, 70);
     print("3. Press 'Up' or 'Down' to change the number of elements", 10, 110);
     print("4. Press 'Space' to mark finished elements", 10, 150);
+    print("5. Press 'Right' or 'Left' to change the shape", 10, 190);
  
   } else {
     // Process image
@@ -72,7 +75,7 @@ public void draw() {
     print("Generation: " + brain.generations, 5, 20);
     textSize(10);
     print("Mutationrate: +/-" + MUTATION_RATE, width-140, 15);
-    print("Elements: " + ELEMENTS, width-140, 25);
+    print("Elements: " + brain.dna.size(), width-140, 25);
   }
 }
 
@@ -103,13 +106,23 @@ public void keyPressed() {
   }
   
   if (keyCode == UP) {
-    ELEMENTS = ELEMENTS + 10 > width*height ? ELEMENTS : ELEMENTS + 10;
-    brain.init(ELEMENTS);
+    ELEMENTS = ELEMENTS + 50 > width*height ? ELEMENTS : ELEMENTS + 10;
+    brain.number = ELEMENTS;
+    brain.init();
   }
   
   if (keyCode == DOWN) {
     ELEMENTS = ELEMENTS - 10 <= 0 ? ELEMENTS : ELEMENTS - 10;
-    brain.init(ELEMENTS);
+    brain.number = ELEMENTS;
+    brain.init();
+  }
+  
+  if (keyCode == RIGHT) {
+    PAINTING = PAINTING.next();
+  }
+  
+  if (keyCode == LEFT) {
+    PAINTING = PAINTING.previous();
   }
 }
 
@@ -120,7 +133,13 @@ public void fileSelected(File selection) {
     }
     
     PImage img = loadImage(selection.getAbsolutePath());
-    img.resize(MAX_WINDOW_WIDTH, 0);
+    
+    if(img.width < img.height) {
+      img.resize(0, MAX_WINDOW);
+    } else {
+      img.resize(0, MAX_WINDOW);
+    }
+    
     surface.setSize(img.width, img.height);
     brain.setImage(img);
   }  
@@ -133,26 +152,31 @@ class Brain {
   long generations;
   boolean complete;
   float dieThreshold;
+  int number;
     
   Brain(int number, int mutationRate, float dieThreshold) {
     dna = new ArrayList<Item>();
     this.mutationRate = mutationRate;
     this.dieThreshold = dieThreshold;
-    init(number);
+    this.number = number;
   }
   
-  public void init(int number) {
+  public void init() { 
     dna.clear();
-    int w = floor(sqrt(width * height / number));
     
-    for(int x = 0; x < width; x += w) {
-      for(int y = 0; y < height; y += w) {
-        Item item = new Item();
-        item.itemWidth = w;
-        item.colour = color(random(0, 255), random(0, 255), random(0, 255), 255);
-        item.position = new PVector(x, y);
-        dna.add(item);
-      }
+    int w = floor(sqrt(image.width * image. height / number));
+    int cols = width / w;
+    
+    for(int i=0; i<number; i++) {
+      
+      int x = (i % cols) * w;
+      int y = (i / cols) * w;
+      
+      Item item = new Item();
+      item.itemWidth = w;
+      item.colour = color(random(0, 255), random(0, 255), random(0, 255), 255);
+      item.position = new PVector(x, y);
+      dna.add(item);   
     }
   }
   
@@ -161,16 +185,13 @@ class Brain {
     image.resize(width, height);
     generations = 0;
     complete = false;
-    if(dna.size() > 0 && dna.get(0).fitness != null) {
-      dna.get(0).fitness[0] = 0;
-    }
   }
   
   public int getAvgColor(float x, float y, int w) {
     
     int[] sums = new int[3];
     
-    if(x+w > width || y+w > height) {
+    if(x+w > image.width || y+w > image.height) {
       return 0;
     }
         
@@ -220,16 +241,22 @@ class Brain {
       }
   }
   
-  public void reconstruct() {    
+  public void reconstruct() {   
+    // DNA size has been changed -> recrate the dna
+    if(dna.size() != number) {
+      init();
+    }
      
+    // Check the completness of the reconstruction
     complete = true;
-     for(Item i : dna) {
+    for(Item i : dna) {
       if(!i.isComplete()) {
         complete = false;
         break;
       }
     }
     
+    // Stop calculation if it is complete
     if(complete) {
       return;
     }
@@ -247,6 +274,18 @@ class Brain {
       generations++;
   }
 }
+enum ItemPainting {
+  CIRCLE, RECT, HEXAGONE;
+  
+  public ItemPainting next() {
+    return values()[(this.ordinal()+1) % values().length];
+  }
+  
+  public ItemPainting previous() {
+    return values()[(this.ordinal()-1) % values().length];
+  }
+}
+
 class Item {
   PVector position;
   int itemWidth;
@@ -265,7 +304,31 @@ class Item {
     }
     
     fill(colour);
-    rect(position.x, position.y, itemWidth, itemWidth);
+    
+    if(PAINTING.equals(ItemPainting.CIRCLE)) {
+       ellipse(position.x, position.y, itemWidth, itemWidth); 
+    
+    } else if(PAINTING.equals(ItemPainting.HEXAGONE)) {
+      polygon(position.x, position.y, itemWidth*0.55f, 6);
+      
+    } else {
+      rect(position.x, position.y, itemWidth, itemWidth);
+    }
+  }
+  
+  public void polygon(float x, float y, float radius, int npoints) {
+    pushMatrix();
+    translate(x, y);
+    
+    float angle = TWO_PI / npoints;
+    beginShape();
+    for (float a = 0; a < TWO_PI; a += angle) {
+      float sx = 0 + cos(a) * radius;
+      float sy = 0 + sin(a) * radius;
+      vertex(sx, sy);
+    }
+    endShape(CLOSE);
+    popMatrix();
   }
 }
   public void settings() {  size(800, 600); }

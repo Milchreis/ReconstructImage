@@ -4,39 +4,42 @@
 // ==================================
 
 /** Sets the number of items/tiles for the complete image */
-int ELEMENTS = 8000;
+int ELEMENTS = 3000;
 
 /** Sets the range for variation of the color value (per color channel 0-255) */
 int MUTATION_RATE = 30;
 
 /** Toggle the visualisation for finished items */
-boolean SHOW_FINISHED_ITEMS = true;
+boolean SHOW_FINISHED_ITEMS = false;
 
 /** Sets the threshold lowest fitness for items which are underneth will die 
  * and reborn as complete new item (random color) */
 float DIE_THRESHOLD = 0.4;
 
-/** Sets the maximum window for loaded images */
-int MAX_WINDOW_WIDTH = 400;
+/** Sets the maximum width/height window for loaded images (takes larges side of the image) */
+int MAX_WINDOW = 800;
+
+/** Painting method */
+ItemPainting PAINTING = ItemPainting.RECT;
 
 Brain brain;
 
 void setup() {
   size(800, 600);
-  surface.setResizable(true);
   textFont(createFont("Monospaced", 11));
 }
 
 void draw() {
   background(30);
   
-  if(brain == null)  {
+  if(brain == null || brain.image == null)  {
     // View instructions
     textSize(22); 
     print("1. Click to load an image", 10, 30);
     print("2. Press '+' or '-' to change the mutation rate", 10, 70);
     print("3. Press 'Up' or 'Down' to change the number of elements", 10, 110);
     print("4. Press 'Space' to mark finished elements", 10, 150);
+    print("5. Press 'Right' or 'Left' to change the shape", 10, 190);
  
   } else {
     // Process image
@@ -56,7 +59,7 @@ void draw() {
     print("Generation: " + brain.generations, 5, 20);
     textSize(10);
     print("Mutationrate: +/-" + MUTATION_RATE, width-140, 15);
-    print("Elements: " + ELEMENTS, width-140, 25);
+    print("Elements: " + brain.dna.size(), width-140, 25);
   }
 }
 
@@ -87,13 +90,23 @@ void keyPressed() {
   }
   
   if (keyCode == UP) {
-    ELEMENTS = ELEMENTS + 10 > width*height ? ELEMENTS : ELEMENTS + 10;
-    brain.init(ELEMENTS);
+    ELEMENTS = ELEMENTS + 50 > width*height ? ELEMENTS : ELEMENTS + 10;
+    brain.number = ELEMENTS;
+    brain.init();
   }
   
   if (keyCode == DOWN) {
     ELEMENTS = ELEMENTS - 10 <= 0 ? ELEMENTS : ELEMENTS - 10;
-    brain.init(ELEMENTS);
+    brain.number = ELEMENTS;
+    brain.init();
+  }
+  
+  if (keyCode == RIGHT) {
+    PAINTING = PAINTING.next();
+  }
+  
+  if (keyCode == LEFT) {
+    PAINTING = PAINTING.previous();
   }
 }
 
@@ -104,7 +117,13 @@ void fileSelected(File selection) {
     }
     
     PImage img = loadImage(selection.getAbsolutePath());
-    img.resize(MAX_WINDOW_WIDTH, 0);
+    
+    if(img.width < img.height) {
+      img.resize(0, MAX_WINDOW);
+    } else {
+      img.resize(0, MAX_WINDOW);
+    }
+    
     surface.setSize(img.width, img.height);
     brain.setImage(img);
   }  
