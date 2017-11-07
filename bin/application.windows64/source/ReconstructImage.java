@@ -153,7 +153,8 @@ class Brain {
   boolean complete;
   float dieThreshold;
   int number;
-  boolean reset = false;
+  boolean imageChanged = false;
+  boolean imageComplete = false;
     
   Brain(int number, int mutationRate, float dieThreshold) {
     dna = new ArrayList<Item>();
@@ -185,7 +186,8 @@ class Brain {
     image = img;
     generations = 0;
     complete = false;
-    reset = true;
+    imageChanged = true;
+    imageComplete = false;
   }
   
   public int getAvgColor(float x, float y, int w) {
@@ -244,22 +246,27 @@ class Brain {
   
   public void reconstruct() {   
     // DNA size has been changed -> recrate the dna
-    if(dna.size() != number || reset == true) {
+    if(dna.size() != number) {
       init();
-      reset = false;
+      imageChanged = false;
+    }
+    
+    // Image has changed, uncomplete one element o 
+    if(imageChanged) {
+      imageComplete = false;
+      imageChanged = false;
     }
      
     // Check the completness of the reconstruction
-    complete = true;
     for(Item i : dna) {
       if(!i.isComplete()) {
-        complete = false;
+        imageComplete = false;
         break;
       }
     }
     
     // Stop calculation if it is complete
-    if(complete) {
+    if(imageComplete) {
       return;
     }
     
